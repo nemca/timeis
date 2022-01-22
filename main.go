@@ -21,32 +21,64 @@ import (
 	"os"
 	"text/tabwriter"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 const (
-	moscow     string = "Europe/Moscow"
 	utc        string = "UTC"
 	timeFormat string = "15:04:05"
+	dateFormat string = "02-01-2006"
 )
 
 func main() {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
+	// Name of config file (without extension)
+	viper.SetConfigName(".timeis")
+	// REQUIRED if the config file does not have the extension in the name
+	// path to look for the config file in call multiple times to add many
+	// search paths
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath("$HOME/")
+	// optionally look for config in the working directory
+	viper.AddConfigPath(".")
+	// Find and read the config file
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// Config file not found
+			fmt.Fprintln(os.Stderr, "config file not found")
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "failed read config file: %v\n", err)
+		os.Exit(1)
+	}
 
+	// Tabwriter for formatted output
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	// Output header
+	fmt.Fprintf(w, "Timezone\tLocal time\tLocal date\n")
+	fmt.Fprintf(w, "----------\t----------\t----------\n")
+
+	// We always show UTC time
 	utcLocation, err := time.LoadLocation(utc)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed parse timezone: %s\n", err.Error())
-		return
+		fmt.Fprintf(os.Stderr, "failed parse timezone: %v\n", err)
+		os.Exit(2)
 	}
 	utcTime := time.Now().In(utcLocation)
-	fmt.Fprintf(w, "UTC:\t%s\n", utcTime.Format(timeFormat))
+	fmt.Fprintf(w, "UTC\t%s\t%s\n", utcTime.Format(timeFormat), utcTime.Format(dateFormat))
 
-	moscowLocation, err := time.LoadLocation(moscow)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed parse timezone: %s\n", err.Error())
-		return
+	// Get timezones from config file and calculate local time
+	timeZones := viper.GetStringSlice("timezones")
+	for _, zone := range timeZones {
+		location, err := time.LoadLocation(zone)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed parse timezone %s: %v\n", zone, err)
+			os.Exit(2)
+		}
+		t := time.Now().In(location)
+		fmt.Fprintf(w, "%s\t%s\t%s\n", zone, t.Format(timeFormat), t.Format(dateFormat))
 	}
-	moscowTime := time.Now().In(moscowLocation)
-	fmt.Fprintf(w, "Moscow:\t%s\n", moscowTime.Format(timeFormat))
 
+	// Flush to output
 	w.Flush()
 }

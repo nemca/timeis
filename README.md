@@ -18,6 +18,7 @@ go get -u github.com/nemca/timeis
 
 ## Example config
 The configuration file is stored in the user's home directory.
+It is in yaml format and name is `$HOME/.timeis.yaml`.
 ```yaml
 ---
 timezones:

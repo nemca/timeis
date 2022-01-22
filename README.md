@@ -2,7 +2,7 @@
 Show time by timezone.
 
 ## Example
-```bash
+```none
 $ timeis
 Timezone       Local time  Local date
 ----------     ----------  ----------

@@ -13,7 +13,7 @@ Europe/Kiev    16:53:48    22-01-2022
 
 ## Install
 ```bash
-go get -u github.com/nemca/timeis
+go install github.com/nemca/timeis@latest
 ```
 
 ## Example config

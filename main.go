@@ -59,26 +59,32 @@ func main() {
 	fmt.Fprintf(w, "----------\t----------\t----------\n")
 
 	// We always show UTC time
-	utcLocation, err := time.LoadLocation(utc)
+	utcTime, err := getTime(utc)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed parse timezone: %v\n", err)
 		os.Exit(2)
 	}
-	utcTime := time.Now().In(utcLocation)
 	fmt.Fprintf(w, "UTC\t%s\t%s\n", utcTime.Format(timeFormat), utcTime.Format(dateFormat))
 
 	// Get timezones from config file and calculate local time
 	timeZones := viper.GetStringSlice("timezones")
 	for _, zone := range timeZones {
-		location, err := time.LoadLocation(zone)
+		t, err := getTime(zone)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed parse timezone %s: %v\n", zone, err)
 			os.Exit(2)
 		}
-		t := time.Now().In(location)
 		fmt.Fprintf(w, "%s\t%s\t%s\n", zone, t.Format(timeFormat), t.Format(dateFormat))
 	}
 
 	// Flush to output
 	w.Flush()
+}
+
+func getTime(timezone string) (time.Time, error) {
+	location, err := time.LoadLocation(timezone)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Now().In(location), nil
 }

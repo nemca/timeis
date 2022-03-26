@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"text/tabwriter"
 	"time"
@@ -26,9 +27,11 @@ import (
 )
 
 const (
-	utc        string = "UTC"
-	timeFormat string = "15:04:05"
-	dateFormat string = "02-01-2006"
+	utc         string = "UTC"
+	timeFormat  string = "15:04:05"
+	dateFormat  string = "02-01-2006"
+	deltaFormat string = "-0700"
+	timeString  string = "\t%s\t%s\t%s\n"
 )
 
 func main() {
@@ -55,8 +58,8 @@ func main() {
 	// Tabwriter for formatted output
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	// Output header
-	fmt.Fprintf(w, "Timezone\tLocal time\tLocal date\n")
-	fmt.Fprintf(w, "----------\t----------\t----------\n")
+	fmt.Fprintf(w, "Timezone\tLocal time\tLocal date\tDelta\n")
+	fmt.Fprintf(w, "----------\t----------\t----------\t----------\n")
 
 	// We always show UTC time
 	utcTime, err := getTime(utc)
@@ -64,7 +67,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "failed parse timezone: %v\n", err)
 		os.Exit(2)
 	}
-	fmt.Fprintf(w, "UTC\t%s\t%s\n", utcTime.Format(timeFormat), utcTime.Format(dateFormat))
+	formatTime(w, "UTC", utcTime.Format(timeFormat), utcTime.Format(dateFormat), utcTime.Format(deltaFormat))
 
 	// Get timezones from config file and calculate local time
 	timeZones := viper.GetStringSlice("timezones")
@@ -74,7 +77,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "failed parse timezone %s: %v\n", zone, err)
 			os.Exit(2)
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\n", zone, t.Format(timeFormat), t.Format(dateFormat))
+		formatTime(w, zone, t.Format(timeFormat), t.Format(dateFormat), t.Format(deltaFormat))
 	}
 
 	// Flush to output
@@ -87,4 +90,9 @@ func getTime(timezone string) (time.Time, error) {
 		return time.Time{}, err
 	}
 	return time.Now().In(location), nil
+}
+
+func formatTime(w io.Writer, zone string, times ...any) {
+	format := fmt.Sprintf("%s%s", zone, timeString)
+	fmt.Fprintf(w, format, times...)
 }

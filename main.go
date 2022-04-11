@@ -23,6 +23,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -35,6 +36,10 @@ const (
 )
 
 func main() {
+	// CLI flags
+	pflag.StringP("utc", "u", "", "Parse argument as an UTC time.")
+	pflag.Parse()
+
 	// Name of config file (without extension)
 	viper.SetConfigName(".timeis")
 	// REQUIRED if the config file does not have the extension in the name
@@ -61,8 +66,21 @@ func main() {
 	fmt.Fprintf(w, "Timezone\tLocal time\tLocal date\tDelta\n")
 	fmt.Fprintf(w, "----------\t----------\t----------\t----------\n")
 
+	var userTime time.Time
+
+	utcFlagValue, err := pflag.CommandLine.GetString("utc")
+	if err != nil {
+		return
+	}
+	if len(utcFlagValue) > 0 {
+		userTime, err = time.Parse(timeFormat, utcFlagValue)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed parse UTC time %s: %v\n", utcFlagValue, err)
+			os.Exit(1)
+		}
+	}
 	// We always show UTC time
-	utcTime, err := getTime(utc)
+	utcTime, err := getTime(utc, userTime)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed parse timezone: %v\n", err)
 		os.Exit(2)
@@ -72,7 +90,7 @@ func main() {
 	// Get timezones from config file and calculate local time
 	timeZones := viper.GetStringSlice("timezones")
 	for _, zone := range timeZones {
-		t, err := getTime(zone)
+		t, err := getTime(zone, userTime)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed parse timezone %s: %v\n", zone, err)
 			os.Exit(2)
@@ -84,12 +102,19 @@ func main() {
 	w.Flush()
 }
 
-func getTime(timezone string) (time.Time, error) {
+func getTime(timezone string, t time.Time) (time.Time, error) {
+	now := time.Now()
+
 	location, err := time.LoadLocation(timezone)
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.Now().In(location), nil
+	if !t.IsZero() {
+		year, month, day := now.Date()
+		now = time.Date(year, month, day, t.Hour(), t.Minute(), 0, 0, t.Location())
+	}
+
+	return now.In(location), nil
 }
 
 func formatTime(w io.Writer, zone string, times ...any) {
